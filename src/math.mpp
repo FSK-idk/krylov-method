@@ -1,0 +1,192 @@
+module;
+
+#include <cassert>
+
+export module math;
+
+import std;
+import types;
+
+
+static std::random_device rd;
+static std::mt19937_64 mt(rd());
+static std::uniform_real_distribution dist(-100.0, 100.0);
+// static std::uniform_int_distribution dist(-30, 30);
+
+export
+auto printComplex(std::complex<f64> n) -> void {
+    std::print("({:15.10f} {:15.10f}) ", n.real(), n.imag());
+}
+
+export
+class Vector {
+public:
+    static auto Create(u64 size) -> Vector {
+        return Vector(size);
+    }
+    static auto From(std::vector<std::complex<f64>> data) -> Vector {
+        return Vector(std::move(data));
+    }
+    static auto Random(u64 size) -> Vector {
+        std::vector<std::complex<f64>> data(size);
+        std::ranges::generate(data, [] { return dist(mt); });
+        return Vector(std::move(data));
+    }
+    static auto Basis(u64 size, u64 row) -> Vector {
+        assert(row < size);
+        std::vector<std::complex<f64>> data(size);
+        data[row] = 1;
+        return Vector(std::move(data));
+    }
+
+    auto operator[] (u64 row) const -> std::complex<f64>  { return data_[row]; }
+    auto operator[] (u64 row)       -> std::complex<f64>& { return data_[row]; }
+
+    auto operator*= (std::complex<f64> a) -> Vector& {
+        for (auto& d : data_) d *= a;
+        return *this;
+    }
+
+    auto operator/= (std::complex<f64> a) -> Vector& {
+        for (auto& d : data_) d /= a;
+        return *this;
+    }
+
+    auto operator+= (Vector const& aa) -> Vector& {
+        assert(data_.size() == aa.size());
+        for (u64 row = 0; row < data_.size(); ++row) {
+            data_[row] += aa[row];
+        }
+        return *this;
+    }
+
+    auto operator>>= (u64 pos) -> Vector& {
+        std::ranges::rotate(data_, data_.end() - pos);
+        return *this;
+    }
+
+    auto print() -> void {
+        for (u64 row = 0; row < data_.size(); ++row) {
+            printComplex(data_[row]);
+            std::println();
+        }
+    }
+
+    auto degree() const -> u64 {
+        return std::ranges::find_last_if(data_, [](std::complex<f64> a){ return a != 0.0; }).begin() - data_.begin();
+    }
+
+    auto maxElem() const -> std::pair<std::complex<f64>, u64> {
+        auto it = std::ranges::max_element(data_, {}, [](std::complex<f64> a) { return std::abs(a); });
+        return { *it, it - data_.begin() };
+    }
+
+    auto monicize() -> Vector& {
+        u64 deg = degree();
+        std::complex<f64> m = data_[deg];
+        if (m == 0.0) return *this;
+        for (u64 k = 0; k <= deg; ++k) data_[k] /= m;
+        return *this;
+    }
+
+    auto data() -> std::complex<f64>* { return data_.data(); }
+    auto size() const -> u64 { return data_.size(); }
+
+    auto map() -> eigen::map<eigen::vec<std::complex<f64>>> {
+        return eigen::map<eigen::vec<std::complex<f64>>>(data_.data(), data_.size());
+    }
+
+private:
+    Vector(u64 size) : data_(size) {}
+    Vector(std::vector<std::complex<f64>> data) : data_(std::move(data)) {}
+
+private:
+    std::vector<std::complex<f64>> data_;
+};
+
+// column major
+export
+class Matrix {
+public:
+    static auto Create(u64 size) -> Matrix {
+        return Matrix(size);
+    }
+    static auto From(std::vector<std::complex<f64>> data) -> Matrix {
+        u64 sq = std::round(std::sqrt(data.size()));
+        assert(sq * sq == data.size());
+        return Matrix(std::move(data), sq);
+    }
+    static auto Random(u64 size) -> Matrix {
+        std::vector<std::complex<f64>> data(size * size);
+        std::ranges::generate(data, [] { return dist(mt); });
+        return Matrix(std::move(data), size);
+    }
+    static auto Identity(u64 size) -> Matrix {
+        std::vector<std::complex<f64>> data(size * size);
+        for (u64 row = 0; row < size; ++row) {
+            data[row * size + row] = 1;
+        }
+        return Matrix(std::move(data), size);
+    }
+
+    auto operator[] (u64 row, u64 col) const -> std::complex<f64>  { return data_[col * size_ + row]; }
+    auto operator[] (u64 row, u64 col)       -> std::complex<f64>& { return data_[col * size_ + row]; }
+
+    auto print() -> void {
+        for (u64 row = 0; row < size_; ++row) {
+            for (u64 col = 0; col < size_; ++col) {
+                printComplex(data_[col * size_ + row]);
+            }
+            std::println();
+        }
+    }
+
+    auto trace() -> std::complex<f64> {
+        std::complex<f64> tr = 0;
+        for (u64 row = 0; row < size_; ++row) {
+            tr += data_[row * size_ + row];
+        }
+        return tr;
+    }
+
+    auto data() -> std::complex<f64>* { return data_.data(); }
+    auto size() const -> u64 { return size_; }
+
+    auto map() -> eigen::map<eigen::mat<std::complex<f64>>> {
+        return eigen::map<eigen::mat<std::complex<f64>>>(data_.data(), size_, size_);
+    }
+
+private:
+    Matrix(u64 size) : data_(size * size), size_(size) {}
+    Matrix(std::vector<std::complex<f64>> data, u64 size) : data_(std::move(data)), size_(size) {}
+
+private:
+    std::vector<std::complex<f64>> data_;
+    u64 size_;
+};
+
+export
+auto operator* (Matrix const& A, Matrix const& B) -> Matrix {
+    assert(A.size() == B.size());
+    Matrix C = Matrix::Create(A.size());
+    for (u64 row = 0; row < A.size(); ++row) {
+        for (u64 col = 0; col < A.size(); ++col) {
+            for (u64 k = 0; k < A.size(); ++k) {
+                C[row, col] += A[row, k] * B[k, col];
+            }
+        }
+    }
+    return C;
+}
+
+export
+auto operator* (Matrix const& A, Vector const& b) -> Vector {
+    assert(A.size() == b.size());
+    Vector c = Vector::Create(A.size());
+    for (u64 row = 0; row < A.size(); ++row) {
+        for (u64 k = 0; k < A.size(); ++k) {
+            c[row] += A[row, k] * b[k];
+        }
+    }
+    return c;
+}

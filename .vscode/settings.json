@@ -1,0 +1,18 @@
+{
+    "cmake.useCMakePresets": "always",
+    "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "cmake.generator": "Ninja",
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.launchBehavior": "reuseTerminal",
+    "cmake.configureOnOpen": false,
+    "cmake.buildBeforeRun": true,
+    "cmake.debugConfig": {
+        "cwd": "${workspaceFolder}"
+    },
+    "clangd.arguments": [
+        "--clang-tidy",
+        "--header-insertion=never",
+        "--experimental-modules-support",
+        "--compile-commands-dir=build"
+    ],
+}

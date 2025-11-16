@@ -1,0 +1,70 @@
+module;
+
+#include <cassert>
+
+export module krylov;
+
+import std;
+import types;
+import math;
+
+
+struct System {
+    std::vector<Vector> P, C;
+    std::vector<u64> K;
+    auto reserve(u64 size) -> void {
+        P.reserve(size);
+        C.reserve(size);
+        K.reserve(size);
+    }
+    auto insert(Vector p, Vector c, u64 k) -> void {
+        P.emplace_back(std::move(p));
+        C.emplace_back(std::move(c));
+        K.emplace_back(k);
+    }
+    auto view() { return std::views::zip(P, C, K); }
+};
+
+export
+auto findPoly(Matrix const& A, Vector c) -> Vector {
+    assert(c.size() == A.size());
+    auto n = A.size();
+    auto S = System(); S.reserve(n);
+    auto p = Vector::Basis(n + 1, 0);
+
+    auto [mx, k] = c.maxElem();
+    if (mx == 0.0) return p.monicize();
+    c /= mx; c[k] = 1.0; p /= mx;
+
+    S.insert(p, c, k);
+
+    for (u64 step = 1; step <= n; ++step) {
+        c = A * c; p >>= 1;
+
+        for (auto [pp, cc, kk] : S.view()) {
+            auto m = c[kk];
+            for (u64 col = 0; col < n; ++col) {
+                c[col] -= m * cc[col];
+                p[col] -= m * pp[col];
+            }
+            c[kk] = 0;
+        }
+
+        auto [mx, k] = c.maxElem();
+        if (mx == 0.0) return p.monicize();
+        c /= mx; c[k] = 1.0; p /= mx;
+
+        for (auto [pp, cc, kk] : S.view()) {
+            auto m = cc[k];
+            for (u64 col = 0; col < n; ++col) {
+                cc[col] -= m * c[col];
+                pp[col] -= m * p[col];
+            }
+            cc[k] = 0;
+        }
+
+        S.insert(p, c, k);
+    }
+
+    assert(false);
+}

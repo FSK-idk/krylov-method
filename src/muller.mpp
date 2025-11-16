@@ -1,0 +1,55 @@
+module;
+
+#include <cassert>
+
+export module muller;
+
+import std;
+import types;
+import math;
+
+auto calcPoly(Vector const& poly, std::complex<f64> x) -> std::complex<f64> {
+    std::complex<f64> ans = 0;
+    for (auto k = poly.size(); k != 0;) {
+        ans = ans * x + poly[--k];
+    }
+    return ans;
+}
+
+auto findRoot(Vector const& poly) -> std::complex<f64> {
+    std::complex<f64> x0 = 0, x1 = 1, x2 = 2;
+    auto f2 = calcPoly(poly, x2);
+    auto f1 = calcPoly(poly, x1);
+    auto f0 = calcPoly(poly, x0);
+
+    while (true) {
+        auto d = (x0-x2) * (x0-x2) * (x1-x2) - (x0-x2) * (x1-x2) * (x1-x2);
+        auto a = ((f0-f2) * (x1-x2) - (x0-x2) * (f1-f2)) / d;
+        auto b = ((f1-f2) * (x0-x2) * (x0-x2) - (x1-x2) * (x1-x2) * (f0-f2)) / d;
+        auto c = f2;
+        auto s = std::sqrt(b * b - 4.0 * a * c);
+        auto den = std::abs(b+s) > std::abs(b-s) ? b+s : b-s;
+        auto x3 = x2 - 2.0 * c / den;
+        auto f3 = calcPoly(poly, x3);
+        if (std::abs(x3 - x2) < 1e-10) return x3;
+        x0 = x1; x1 = x2; x2 = x3;
+        f0 = f1; f1 = f2; f2 = f3;
+    }
+
+    assert(false);
+}
+
+export
+auto findRoots(Vector poly) -> std::vector<std::complex<f64>> {
+    std::vector<std::complex<f64>> roots;
+    for (u64 deg = poly.degree(); deg != 0; --deg) {
+        auto x = findRoot(poly);
+        roots.push_back(x);
+        std::complex<f64> d = 0;
+        for (u64 k = deg; k != 0; --k) {
+            poly[k] = std::exchange(d, poly[k] + x * d);
+        }
+        poly[0] = d;
+    }
+    return roots;
+}

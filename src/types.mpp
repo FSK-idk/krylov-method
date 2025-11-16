@@ -1,0 +1,29 @@
+module;
+
+#include <Eigen/Eigen>
+
+export module types;
+
+import std;
+
+
+export {
+
+using f64 = double;
+using i32 = std::int32_t;
+using u64 = std::uint64_t;
+
+namespace eigen {
+
+template <class T>
+using map = Eigen::Map<T>;
+
+template <class T>
+using mat = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+
+template <class T>
+using vec = Eigen::Vector<T, Eigen::Dynamic>;
+
+}
+
+}
