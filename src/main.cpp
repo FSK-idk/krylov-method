@@ -15,6 +15,7 @@ auto example() -> void {
         {-1, 0 }, { 0, 0 }, { 4, 0 }, { 0, 0 },
         {-1, 0 }, { 0, 0 }, { 1, 0 }, { 3, 0 },
     };
+    auto A = Matrix::From(std::move(dataA));
     #elif EXAMPLE == 2
     std::vector<std::complex<f64>> dataA = {
         { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 },
@@ -22,11 +23,16 @@ auto example() -> void {
         { 1, 0 }, { 1, 0 }, { 4, 0 }, { 1, 0 },
         { 4, 0 }, { 1, 0 }, { 2, 0 }, { 2, 0 },
     };
+    auto A = Matrix::From(std::move(dataA));
+    #elif EXAMPLE == 3
+    auto A = Matrix::Hilbert(6);
     #endif
 
-    auto A = Matrix::From(std::move(dataA));
     std::println("A");
     A.print();
+
+    f64 cond_inf = A.map().rowwise().lpNorm<1>().maxCoeff() * A.map().inverse().rowwise().lpNorm<1>().maxCoeff();
+    std::println("cond_inf = {}", cond_inf);
 
     auto phi = findPoly(A, Vector::Basis(A.size(), 0));
     std::println("phi");
